@@ -126,7 +126,7 @@ export async function fetchFilteredInvoices(
         END DESC
       LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
     `;
-    console.log('invoices.rows: ', invoices.rows);
+
     return invoices.rows;
   } catch (error) {
     console.error('Database Error:', error);
@@ -181,7 +181,7 @@ export async function fetchInvoiceById(id: string) {
   }
 }
 
-export async function fetchCustomers() {
+export async function fetchCustomers(query: string, currentPage: number) {
   try {
     const data = await sql<CustomerField>`
       SELECT
@@ -189,6 +189,7 @@ export async function fetchCustomers() {
         name
       FROM customers
       ORDER BY name ASC
+     
     `;
 
     const customers = data.rows;
@@ -199,7 +200,11 @@ export async function fetchCustomers() {
   }
 }
 
-export async function fetchFilteredCustomers(query: string) {
+export async function fetchFilteredCustomers(
+  query: string,
+  currentPage: number,
+) {
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
   noStore();
   try {
     const data = await sql<CustomersTable>`
@@ -218,6 +223,7 @@ export async function fetchFilteredCustomers(query: string) {
         customers.email ILIKE ${`%${query}%`}
 		GROUP BY customers.id, customers.name, customers.email, customers.image_url
 		ORDER BY customers.name ASC
+    LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
 	  `;
 
     const customers = data.rows.map((customer) => ({
