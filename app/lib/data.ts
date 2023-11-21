@@ -106,6 +106,7 @@ export async function fetchFilteredInvoices(
         invoices.amount,
         invoices.date,
         invoices.status,
+        invoices.update_date,
         customers.name,
         customers.email,
         customers.image_url
@@ -116,11 +117,16 @@ export async function fetchFilteredInvoices(
         customers.email ILIKE ${`%${query}%`} OR
         invoices.amount::text ILIKE ${`%${query}%`} OR
         invoices.date::text ILIKE ${`%${query}%`} OR
+        invoices.update_date::text ILIKE ${`%${query}%`} OR
         invoices.status ILIKE ${`%${query}%`}
-      ORDER BY invoices.date DESC
+      ORDER BY
+        CASE
+          WHEN invoices.update_date IS NOT NULL THEN invoices.update_date
+          ELSE invoices.date
+        END DESC
       LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
     `;
-
+    console.log('invoices.rows: ', invoices.rows);
     return invoices.rows;
   } catch (error) {
     console.error('Database Error:', error);
@@ -168,7 +174,6 @@ export async function fetchInvoiceById(id: string) {
       // Convert amount from cents to dollars
       amount: invoice.amount / 100,
     }));
-
     return invoice[0];
   } catch (error) {
     console.error('Database Error:', error);
