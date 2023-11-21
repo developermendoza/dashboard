@@ -12,6 +12,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   if (!invoice) {
     notFound();
   }
+  console.log('test');
   return (
     <main>
       <Breadcrumbs
