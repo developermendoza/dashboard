@@ -3,6 +3,21 @@ import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { signIn } from '@/auth';
+
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  try {
+    await signIn('credentials', Object.fromEntries(formData));
+  } catch (error) {
+    if ((error as Error).message.includes('CredentialsSignin')) {
+      return 'CredentialsSignin';
+    }
+    throw error;
+  }
+}
 
 const FormSchema = z.object({
   id: z.string(),
@@ -38,6 +53,7 @@ export async function createInvoice(prevState: State, formData: FormData) {
   });
 
   // If form validation fails, return errors early. Otherwise, continue.
+  console.log('validatedFields', validatedFields);
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
@@ -48,7 +64,6 @@ export async function createInvoice(prevState: State, formData: FormData) {
   // Prepare data for insertion into the database
   const { customerId, amount, status } = validatedFields.data;
   const amountInCents = amount * 100;
-  // const date = new Date().toISOString().split('T')[0];
   const date = new Date().toISOString();
   console.log('date: ', date);
 
@@ -160,4 +175,82 @@ export async function deleteCustomer(id: string) {
     };
   }
   revalidatePath('/dashboard/customers');
+}
+
+const CreateCustomerFormSchema = z.object({
+  name: z
+    .string({
+      invalid_type_error: 'Please add a name.',
+    })
+    .refine((data) => data.trim() !== '', {
+      message: 'Name cannot be empty.',
+    }),
+  email: z
+    .string({
+      invalid_type_error: 'Please add an email.',
+    })
+    .refine((data) => data.trim() !== '', {
+      message: 'Email cannot be empty.',
+    }),
+  image_url: z
+    .string({
+      invalid_type_error: 'Please add a picture.',
+    })
+    .refine((data) => data.trim() !== '', {
+      message: 'Image URL cannot be empty.',
+    }),
+  date: z.string(),
+});
+
+const CreateCustomer = CreateCustomerFormSchema.omit({ date: true });
+
+export type CreateCustomerState = {
+  errors?: {
+    name?: string[];
+    email?: string[];
+    image_url?: string[];
+  };
+  message?: string | null;
+};
+
+export async function createCustomer(
+  prevState: CreateCustomerState,
+  formData: FormData,
+) {
+  // Validate form using Zod
+  const validatedFields = CreateCustomer.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    image_url: formData.get('image_url'),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create a new customer.',
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const { name, email, image_url } = validatedFields.data;
+
+  // Insert data into the database
+  const image_url_ext = `/customers/${image_url}`;
+  try {
+    await sql`
+      INSERT INTO customers (name, email, image_url)
+      VALUES (${name}, ${email}, ${image_url_ext})
+    `;
+  } catch (error) {
+    console.log('error: ', error);
+    // If a database error occurs, return a more specific error.
+    return {
+      message: 'Database Error: Failed to Create Customer.',
+    };
+  }
+
+  // Revalidate the cache for the invoices page and redirect the user.
+  revalidatePath('/dashboard/customers');
+  redirect('/dashboard/customers');
 }
