@@ -7,6 +7,11 @@ import { CreateCustomer } from '@/app/ui/customers/buttons';
 import { CustomersTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchCustomersPages } from '@/app/lib/data';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Customers',
+};
 
 export default async function Page({
   searchParams,

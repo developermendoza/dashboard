@@ -13,7 +13,6 @@ export default async function CustomersTable({
   currentPage: number;
 }) {
   const customers = await fetchFilteredCustomers(query, currentPage);
-  console.log('customers: ', customers);
   return (
     <div className="w-full">
       <div className="mt-6 flow-root">
